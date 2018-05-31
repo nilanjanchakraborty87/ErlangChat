@@ -1,0 +1,17 @@
+{application, yaychat,
+ [{description, "yayChat! Fastest, Simple & Reliable Chat"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { yaychat, [{port,9755}]}},
+  {applications,
+   [kernel,
+    stdlib,
+    inets
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

@@ -1,0 +1,18 @@
+{"1.1.0",
+[{<<"ejson">>,
+  {git,"git://github.com/jonasrichard/ejson.git",
+       {ref,"955826c86453fa7f351db36b3430c14e8892070c"}},
+  0},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
+ {<<"jsx">>,
+  {git,"git://github.com/talentdeficit/jsx.git",
+       {ref,"45ffea21a6863c58fb7da1f937e868916ff68b27"}},
+  0},
+ {<<"lager">>,
+  {git,"git://github.com/erlang-lager/lager.git",
+       {ref,"d0a9db3b7aff9a46809e037c73a5b6d70db83ab9"}},
+  0}]}.
+[
+{pkg_hash,[
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>}]}
+].
