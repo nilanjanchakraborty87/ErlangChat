@@ -91,7 +91,7 @@ public class App {
                 loggedInMobile = Long.valueOf(((Map) response.getData()).get("mobile").toString());
                 return;
             }
-            System.err.format("Login failed. Reason: %s", response != null ? response.getMessage() : "");
+            System.err.format("Login failed. Reason: %s%n", response != null ? response.getMessage() : "");
             login();
         } catch (IOException e) {
             e.printStackTrace();
@@ -116,7 +116,7 @@ public class App {
         try {
             Response response = read(in, Response.class);
             if (response == null || StringUtils.equals(response.getSuccess(), "false")) {
-                System.err.format("Registration failed. Reason: %s", response != null ? response.getMessage() : "");
+                System.err.format("Registration failed. Reason: %s%n", response != null ? response.getMessage() : "");
                 register();
             }
         } catch (IOException e) {
