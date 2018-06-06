@@ -60,9 +60,12 @@ public class App {
         //send login request
         app.login();
         //start chat acceptor
-        new Thread(app::accept).start();
+        Thread accept = new Thread(app::accept);
+        accept.setUncaughtExceptionHandler((t, e) -> latch.countDown());
+        accept.start();
         //show incoming chat
         Thread t = new Thread(app::show);
+        t.setUncaughtExceptionHandler((t1, e) -> latch.countDown());
         t.setDaemon(true);
         t.start();
         //send chat
@@ -92,7 +95,7 @@ public class App {
                 loggedInMobile = Long.valueOf(((Map) response.getData()).get("mobile").toString());
                 return;
             }
-            log.warn("Login failed. Reason: {}", response.getMessage());
+            log.warn("Login failed. Reason: {}", response != null ? response.getMessage() : "");
             login();
         } catch (IOException e) {
             e.printStackTrace();
@@ -117,7 +120,7 @@ public class App {
         try {
             Response response = read(in, Response.class);
             if (response == null || StringUtils.equals(response.getSuccess(), "false")) {
-                log.warn("Registration failed. Reason: {}", response.getMessage());
+                log.warn("Registration failed. Reason: {}", response != null ? response.getMessage() : "");
                 register();
             }
         } catch (IOException e) {
