@@ -10,12 +10,12 @@ import org.manhattan.tools.yaychat.dto.Registration;
 import org.manhattan.tools.yaychat.dto.Response;
 import org.manhattan.tools.yaychat.utils.Utils;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -51,7 +51,6 @@ public class App {
     }
 
     public static void main(String[] args) throws IOException {
-        CountDownLatch latch = new CountDownLatch(1);
         log.info("Starting up yaychat client");
         App app = new App();
         app.init();
@@ -61,7 +60,6 @@ public class App {
         app.login();
         //start chat acceptor
         Thread accept = new Thread(app::accept);
-        accept.setUncaughtExceptionHandler((t, e) -> latch.countDown());
         accept.start();
         //show incoming chat
         Thread t = new Thread(app::show);
@@ -70,8 +68,7 @@ public class App {
         //send chat
         app.chat();
         try {
-            latch.await();
-
+            accept.join();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -85,7 +82,7 @@ public class App {
                 .mobile(prompt("Mobile", 10))
                 .password(prompt("Password"))
                 .build(), os)) {
-            log.warn("Failed to login. Will retry");
+            System.err.println("Failed to login. Will retry");
             login();
         }
         try {
@@ -94,7 +91,7 @@ public class App {
                 loggedInMobile = Long.valueOf(((Map) response.getData()).get("mobile").toString());
                 return;
             }
-            log.warn("Login failed. Reason: {}", response != null ? response.getMessage() : "");
+            System.err.format("Login failed. Reason: %s", response != null ? response.getMessage() : "");
             login();
         } catch (IOException e) {
             e.printStackTrace();
@@ -105,7 +102,7 @@ public class App {
         System.out.println("YayChat>> Registration Details >>");
         val answer = prompt("Do you like to register (Y/N)");
         if (!StringUtils.equals("Y", StringUtils.upperCase(answer)) && !StringUtils.equals("YES", StringUtils.upperCase(answer))) {
-            log.info("Client is already registered, please login now");
+            System.err.format("Seems registered, please login now");
             login();
         }
         if (!send(Registration.builder().name(prompt("Name"))
@@ -113,13 +110,13 @@ public class App {
                 .mobile(prompt("Mobile", 10))
                 .password(prompt("Password"))
                 .build(), os)) {
-            log.warn("Failed to register. Will retry");
+            System.err.println("Failed to register. Will retry");
             register();
         }
         try {
             Response response = read(in, Response.class);
             if (response == null || StringUtils.equals(response.getSuccess(), "false")) {
-                log.warn("Registration failed. Reason: {}", response != null ? response.getMessage() : "");
+                System.err.format("Registration failed. Reason: %s", response != null ? response.getMessage() : "");
                 register();
             }
         } catch (IOException e) {
@@ -141,7 +138,7 @@ public class App {
         lock.unlock();
 
         while (!send(chat, os)) {
-            log.warn("Failed to send. Will retry");
+            System.err.println("Failed to send. Will retry now");
             send(chat, os);
         }
         try {
@@ -163,7 +160,10 @@ public class App {
                     if (chat != null)
                         queue.offer(chat);
                 }
-            } catch (IOException e) {
+            } catch (EOFException e) {
+                log.warn("Unable to accept new message", e);
+            }
+            catch (IOException e) {
                 log.error("{} is terminating", Thread.currentThread().getName());
                 break;
             }
