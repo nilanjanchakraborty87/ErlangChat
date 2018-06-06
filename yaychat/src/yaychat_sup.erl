@@ -45,6 +45,9 @@ init(Args) ->
     YayChatRouterSpec = {?ROUTER, {?ROUTER, start_link, []},
         permanent, 10, worker, [?ROUTER]},
 
+    %%YaChatLoginHandlerSupSpec = {loginHandlerSup, {yaychat_login_handler_sup, start_link, []},
+    %%    Restart, Shutdown, supervisor, [yaychat_login_handler_sup]}.
+
     %%YayChatStorage = {yayChatStorage, {yaychat_storage, start_link, []},
                          %%  permanent, 10, worker, [yaychat_storage]},
 

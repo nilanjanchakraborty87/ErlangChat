@@ -106,7 +106,9 @@ handle_call({new_login, LoginDetail, Socket, PID}, _From, State) ->
               Name,
               Email,
               true, PID, Socket}),
-            login_success;
+            Now = calendar:local_time(),
+            LoginTime = qdate:to_string("YmdHi", Now),
+            #client{name = Name, email = Email, mobile = Mobile, lastLogin = LoginTime};
           false -> lager:info("Password doesn't match"),
             password_dont_match
       end
@@ -128,7 +130,10 @@ handle_cast({private_chat, ChatDetail, Socket}, State) ->
   From = ChatDetail#chat_detail.from,
   To = ChatDetail#chat_detail.to,
   Recipients = ets:lookup(State#state.users, To),
-  forward_message(Recipients, From, ChatDetail#chat_detail.message),
+  case Recipients of
+    [] -> lager:info("[~p] is not registered in yaychat", [To]);
+    _ -> forward_message(Recipients, From, ChatDetail#chat_detail.message)
+  end,
   {noreply, State}.
 
 

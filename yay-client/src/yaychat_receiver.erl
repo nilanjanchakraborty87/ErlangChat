@@ -5,14 +5,14 @@
 -record(login, {mobile, password}).
 -record(chat_detail, {from, to, message}).
 -record(request, {type, data}).
--record(response, {success, message, data}).
+-record(response, {success, type, message, data}).
 -record(client, {name, mobile, email, password, lastLogin, friends}).
 
 -json({registration, {string, "name"}, {number, "mobile"}, {string, "emailId"}, {string, "password"}}).
 -json({login, {number, "mobile"}, {string, "password"}}).
 -json({chat_detail, {number, "from"}, {number, "to"}, {string, "message"}}).
 -json({request, {string, "type"}, {record, "data"}}).
--json({response, {string, "isSuccess"}, {string, "message"}, {record, "data"}}).
+-json({response, {string, "isSuccess"}, {string, "type"}, {string, "message"}, {record, "data"}}).
 
 start(Socket) ->
   spawn(?MODULE, init, [Socket]).

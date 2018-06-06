@@ -16,8 +16,9 @@
 -json({registration, {string, "name"}, {number, "mobile"}, {string, "emailId"}, {string, "password"}}).
 -json({login, {number, "mobile"}, {string, "password"}}).
 -json({chat_detail, {number, "from"}, {number, "to"}, {string, "message"}}).
+-json({client, {string, "name"}, {number, "mobile"}, {string, "email"}, {string, "lastLogin"}}).
 -json({request, {string, "type"}, {record, "data"}}).
--json({response, {string, "isSuccess"}, {string, "message"}, {record, "data"}}).
+-json({response, {string, "isSuccess"}, {string, "type"}, {string, "message"}, {record, "data"}}).
 
 %% API
 -export([start_link/1, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -53,20 +54,24 @@ handle_cast({private_message, From, Message}, State) ->
 
 handle_info({tcp, Socket, Req}, State) ->
   lager:info("Received request. Raw request: [ ~p]", [Req]),
-  {ok, NewReq} = from_json(list_to_binary(Req), request),
-
-  NewState = case NewReq#request.type of
-               "registration" ->
-                 handle_request(registration, NewReq, Socket, State);
-               "login" ->
-                 handle_request(login, NewReq, Socket, State);
-               "chat" ->
-                 handle_request(chat, NewReq, Socket, State);
-               _ ->
-                 lager:info("Unknown request")
-  end,
-  refresh_socket(Socket),
-  {noreply, NewState};
+  try from_json(list_to_binary(Req), request) of
+    {ok, NewReq} ->
+      NewState = case NewReq#request.type of
+                   "registration" ->
+                     handle_request(registration, NewReq, Socket, State);
+                   "login" ->
+                     handle_request(login, NewReq, Socket, State);
+                   "chat" ->
+                     handle_request(chat, NewReq, Socket, State);
+                   _ ->
+                     lager:info("Unknown request")
+                 end,
+      refresh_socket(Socket),
+      {noreply, NewState}
+  catch
+      _:_  -> lager:error("Error parsing the received message"),
+    {noreply, State}
+  end;
 handle_info({tcp_closed, Socket}, State) ->
   lager:info("Connection close request received from client [~w]", [Socket]),
   {stop, normal, State};
@@ -83,10 +88,10 @@ handle_request(registration, Req, Socket, State) ->
   {RegState, RegResponse} = case RegRouterResponse of
                               true -> lager:info("Registration Successful"),
                                 {#state{registered = true, socket = State#state.socket},
-                                  #response{success = "true", message = "Registration Successful"}};
+                                  #response{success = "true", type = "registration", message = "Registration Successful"}};
                               false ->
                                 {State,
-                                  #response{success = "false", message = "Mobile no is already in use"}}
+                                  #response{success = "false", type = "registration", message = "Mobile no is already in use"}}
                             end,
   lager:info("Registration response details: [~p]", [RegResponse]),
   {ok, JsonRegResponse} = to_json(RegResponse),
@@ -99,13 +104,13 @@ handle_request(login, Req, Socket, State) ->
   {LoginState, LoginResponse} = case LoginRouterResponse of
                                   user_not_found ->
                                     {State,
-                                      #response{success = "false", message = "User not found"}};
+                                      #response{success = "false",type = "login",  message = "User not found"}};
                                   password_dont_match ->
                                     {State,
-                                      #response{success = "false", message = "Password don't match"}};
-                                  login_success ->
+                                      #response{success = "false", type = "login", message = "Password don't match"}};
+                                  Client ->
                                     {#state{registered = true, loggedin = true, socket = State#state.socket, mobile = (Req#request.data)#login.mobile},
-                                      #response{success = "true", message = "Login Successful"}}
+                                      #response{success = "true", type = "login", message = "Login Successful", data = Client}}
                                 end,
   lager:info("Login response details: [~p]", [LoginResponse]),
   {ok, JsonLoginResponse} = to_json(LoginResponse),
