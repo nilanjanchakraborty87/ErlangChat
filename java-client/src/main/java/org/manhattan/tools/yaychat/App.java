@@ -65,7 +65,6 @@ public class App {
         accept.start();
         //show incoming chat
         Thread t = new Thread(app::show);
-        t.setUncaughtExceptionHandler((t1, e) -> latch.countDown());
         t.setDaemon(true);
         t.start();
         //send chat
