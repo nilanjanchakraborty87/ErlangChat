@@ -5,8 +5,13 @@
   {mod, { yaychat, [{port,9755}]}},
   {applications,
    [kernel,
-    stdlib,
-    inets
+   stdlib,
+   inets,
+   mysql_poolboy,
+   jiffy,
+	  cowboy,
+      cowboy_session,
+      emodel
    ]},
   {env,[]},
   {modules, []},

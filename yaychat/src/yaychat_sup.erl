@@ -31,6 +31,7 @@ start_link(Args) ->
 init(Args) ->
     process_flag(trap_exit, true),
     lager:info("yaychat_sup: initializing, pid=~w", [self()]),
+
     RestartStrategy = one_for_one,
     MaxRetries = 5,
     DurationBetweenRestarts = 60,
@@ -54,7 +55,7 @@ init(Args) ->
     ChildSpecs = [YayChatServerSupSpec, YayChatRouterSpec],
     ok = supervisor:check_childspecs(ChildSpecs),
     SupSpecs = {{RestartStrategy, MaxRetries, DurationBetweenRestarts}, ChildSpecs},
-    lager:info("mychat_sup:init() returning"),
+    lager:info("yaychat_sup:init() returning"),
     {ok, SupSpecs}.
 
 %%====================================================================

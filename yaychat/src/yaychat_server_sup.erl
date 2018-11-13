@@ -49,6 +49,7 @@ init(Args) ->
   {port, ServerPort} = Args,
   {ok, ListenSocket} = gen_tcp:listen(ServerPort, ?TCP_OPTIONS),
   lager:info("yaychat_server_sup: listening on port ~w", [ServerPort]),
+  yaychat_db:check_user("9674632844"),
   spawn_link(fun invoke_advance_listeners/0),
   {ok, {{simple_one_for_one, 60, 3600},
     [{?SERVER,
@@ -59,4 +60,3 @@ init(Args) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
