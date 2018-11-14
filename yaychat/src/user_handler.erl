@@ -59,7 +59,7 @@ register(Req, State) ->
                 ]},
                 {<<"mobile">>, required, integer, #user.user_mobile, [non_empty,
                     fun(V) ->
-                        validator:min_length(10, integer_to_list(V))
+                        validator:min_length(10, integer_to_binary(V))
                     end
                 ]},
                 {<<"fname">>, required, string, #user.user_fname, [non_empty]},
@@ -82,10 +82,16 @@ register(Req, State) ->
 
                    %% Perform Registration
                    case persist_user(Emodel, Req1) of
-                       {ok, User, Req5} ->
-                           {true, reply(200, User, Req5), State};
-                       {error, Req6} ->
-                           {false, Req6, State}
+                       {ok, UserId, Req5} ->
+                         Response = #response{success = "true", type = "registration", message = "Registration Successful"},
+                         {ok, ResponseJson} = to_json(Response),
+                         Req6 = cowboy_req:set_resp_body(ResponseJson, Req5),
+                           {true, Req6, State};
+                       {error, Reason, Req7} ->
+                         Response = #response{success = "false", type = "registration", message = Reason},
+                         {ok, ResponseJson} = to_json(Response),
+                         Req8 = cowboy_req:set_resp_body(ResponseJson, Req7),
+                           {false, Req8, State}
                    end
 
            end;
@@ -106,7 +112,10 @@ persist_user(Emodel, Req) ->
             %Register_safe_pass = maps:update(pass, pwd2hash(Pass), Data),
             %Register = maps:put(token, random(64), Register_safe_pass),
             %{ok, Req2} = cowboy_session:set(<<"register">>, Register, Req1),
-            {ok, #{}, Req};
+            case yaychat_db:save_user(Data) of
+              undefined -> {error, <<"Internal error">>, Req};
+             UserId -> {ok, UserId, Req}
+           end;
         _ ->
-            {error, reply(400, <<"User already exists">>, Req)}
+            {error, "User already exists", Req}
     end.

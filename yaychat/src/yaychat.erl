@@ -24,6 +24,9 @@ start(_StartType, _StartArgs) ->
     lager:info("Copyright (C) 2018-2020 NilanjanC."),
     lager:info("All rights reserved."),
     lager:start(),
+
+    check_node_status(),
+
     %application:ensure_all_started(mysql_poolboy),
     %application:ensure_all_started(cowboy),
     Dispatch = cowboy_router:compile([
@@ -34,7 +37,7 @@ start(_StartType, _StartArgs) ->
             ]}
     ]),
     {ok, _} = cowboy:start_clear(yaychat_http_listener,
-        [{port, 8080}],
+        [{port, 8081}],
         #{env => #{dispatch => Dispatch},
         middlewares => [cowboy_router, session_cowboy_middleware, cowboy_handler]
     }),
@@ -51,18 +54,25 @@ start(_StartType, _StartArgs) ->
           {error, Reason}
     end.
 
+check_node_status() ->
+  case yaychat_db:check_node_status(atom_to_list(node())) of
+    already_up -> lager:info("Sorry!! there is already a cluster member available with the given node name"),
+                  timer:sleep(500),
+                  halt();
+      error -> check_node_status();
+      _ -> ok
+  end.
 
 connect_nodes() ->
     case yaychat_db:list_live_nodes() of
       [] -> ok;
       NodeList ->
-        %% connect to nodes
   	    [net_kernel:connect_node(list_to_atom(binary_to_list(Node))) || Node <- NodeList];
       error -> connect_nodes()
     end.
 
 register_node() ->
-    case yaychat_db:register_node(node()) of
+    case yaychat_db:register_node(atom_to_list(node())) of
       ok -> void;
      error -> register_node()
    end.
@@ -70,6 +80,7 @@ register_node() ->
 
 %%--------------------------------------------------------------------
 stop(_State) ->
+  yaychat_db:set_node_status_down(),
     ok.
 
 %%====================================================================
