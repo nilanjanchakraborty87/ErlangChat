@@ -25,7 +25,7 @@
 -define(SERVER, ?MODULE).
 
 -include("yaychat.hrl").
--record(user, {mobile, password, name, email, loginStatus, pid, socket}).
+%-record(user, {mobile, password, name, email, loginStatus, pid, socket}).
 -record(state, {users}).
 
 %%%===================================================================

@@ -17,6 +17,6 @@ email(Email) ->
 %     regexp_match("^\\w+([.-]?\\w+)+$", Login).
 
 min_length(MinLength, Bin) when byte_size(Bin) < MinLength ->
-    {error, lager:error("min length: ~b", [MinLength])};
+    {error, list_to_binary(unicode:characters_to_list(["minimum required length: ", integer_to_list(MinLength)]))};
 min_length(_, _) ->
     ok.

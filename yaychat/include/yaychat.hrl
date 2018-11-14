@@ -5,6 +5,7 @@
 -record(client, {name, mobile, email, lastLogin}).
 -record(response, {success, type, message, data}).
 -record(dbinfo, {username, password, host, port, db}).
--record(dbuser, {user_id, user_fname, user_lname, user_email, user_mobile, user_dob, username, password, is_active}).
+-record(credentials, {user_id, username, password, is_active}).
+-record(user, {user_id, user_fname, user_lname, user_email, user_mobile, user_dob, username, password, is_active}).
 
 -define(ROUTER, yaychat_router).

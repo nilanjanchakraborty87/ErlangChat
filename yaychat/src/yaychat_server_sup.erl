@@ -7,6 +7,7 @@
 %%% Created : 28. May 2018 3:50 PM
 %%%-------------------------------------------------------------------
 -module(yaychat_server_sup).
+-include("yaychat.hrl").
 -author("nilanjanc").
 
 -behaviour(supervisor).
@@ -50,6 +51,7 @@ init(Args) ->
   {ok, ListenSocket} = gen_tcp:listen(ServerPort, ?TCP_OPTIONS),
   lager:info("yaychat_server_sup: listening on port ~w", [ServerPort]),
   yaychat_db:check_user("9674632844"),
+  lager:info("Record Info for User: [~p]", [record_info(fields, user)]),
   spawn_link(fun invoke_advance_listeners/0),
   {ok, {{simple_one_for_one, 60, 3600},
     [{?SERVER,
