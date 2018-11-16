@@ -5,7 +5,8 @@
   {mod, { yay_client_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    jiffy
    ]},
   {env,[]},
   {modules, []},

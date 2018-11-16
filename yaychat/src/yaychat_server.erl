@@ -11,7 +11,6 @@
 -behavior(gen_server).
 -define(TCP_OPTIONS, [binary, {packet, 4}, {active, false}, {reuseaddr, true}]).
 
--record(state, {socket, registered = false, loggedin = false, mobile}).
 
 -json({registration, {string, "name"}, {number, "mobile"}, {string, "emailId"}, {string, "password"}}).
 -json({login, {number, "mobile"}, {string, "password"}}).
@@ -19,6 +18,8 @@
 -json({client, {string, "name"}, {number, "mobile"}, {string, "email"}, {string, "lastLogin"}}).
 -json({request, {string, "type"}, {record, "data"}}).
 -json({response, {string, "isSuccess"}, {string, "type"}, {string, "message"}, {record, "data"}}).
+
+-record(state, {socket, registered = false, loggedin = false, mobile}).
 
 %% API
 -export([start_link/1, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -52,15 +53,31 @@ handle_cast({private_message, From, Message}, State) ->
   gen_tcp:send(State#state.socket, ChatJsonReq),
   {noreply, State}.
 
+handle_info({private_message, From, Message}, State) ->
+  lager:info("Received new message[~p] from[~p]", [Message, From]),
+  Chat = #chat_detail{from = From, to = State#state.mobile, message = Message},
+  Request = #request{type = "chat", data = Chat},
+  {ok, ChatJsonReq} = to_json(Request),
+  lager:info("Chat json request: [~p]", [ChatJsonReq]),
+  gen_tcp:send(State#state.socket, ChatJsonReq),
+  {noreply, State};
 handle_info({tcp, Socket, Req}, State) ->
   lager:info("Received request. Raw request: [ ~p]", [Req]),
   try from_json(list_to_binary(Req), request) of
     {ok, NewReq} ->
       NewState = case NewReq#request.type of
-                   "registration" ->
-                     handle_request(registration, NewReq, Socket, State);
                    "login" ->
-                     handle_request(login, NewReq, Socket, State);
+                     LoginResponse = user_handler:login(NewReq, Socket, self()),
+                     lager:info("Login response details: [~p]", [LoginResponse]),
+                     {ok, JsonLoginResponse} = to_json(LoginResponse),
+                     lager:info("Login json response: [~p]", [JsonLoginResponse]),
+                     gen_tcp:send(Socket, JsonLoginResponse),
+                     case LoginResponse#response.success of
+                       "true" ->
+                         State#state{loggedin = true, registered = true, mobile = (NewReq#request.data)#login.mobile};
+                       "false" ->
+                         State
+                     end;
                    "chat" ->
                      handle_request(chat, NewReq, Socket, State);
                    _ ->
@@ -82,41 +99,7 @@ handle_info(E, State) ->
   lager:info("Unexpected [~w]", E),
   {noreply, State}.
 
-handle_request(registration, Req, Socket, State) ->
-  lager:info("Registration Name ~p", [(Req#request.data)#registration.name]),
-  RegRouterResponse = gen_server:call(?ROUTER, {new_registration, Req#request.data, Socket, self()}, infinity),
-  {RegState, RegResponse} = case RegRouterResponse of
-                              true -> lager:info("Registration Successful"),
-                                {#state{registered = true, socket = State#state.socket},
-                                  #response{success = "true", type = "registration", message = "Registration Successful"}};
-                              false ->
-                                {State,
-                                  #response{success = "false", type = "registration", message = "Mobile no is already in use"}}
-                            end,
-  lager:info("Registration response details: [~p]", [RegResponse]),
-  {ok, JsonRegResponse} = to_json(RegResponse),
-  lager:info("Registration json response: [~p]", [JsonRegResponse]),
-  gen_tcp:send(Socket, JsonRegResponse),
-  RegState;
-handle_request(login, Req, Socket, State) ->
-  lager:info("Login mobile ~p", [(Req#request.data)#login.mobile]),
-  LoginRouterResponse = gen_server:call(?ROUTER, {new_login, Req#request.data, Socket, self()}, infinity),
-  {LoginState, LoginResponse} = case LoginRouterResponse of
-                                  user_not_found ->
-                                    {State,
-                                      #response{success = "false",type = "login",  message = "User not found"}};
-                                  password_dont_match ->
-                                    {State,
-                                      #response{success = "false", type = "login", message = "Password don't match"}};
-                                  Client ->
-                                    {#state{registered = true, loggedin = true, socket = State#state.socket, mobile = (Req#request.data)#login.mobile},
-                                      #response{success = "true", type = "login", message = "Login Successful", data = Client}}
-                                end,
-  lager:info("Login response details: [~p]", [LoginResponse]),
-  {ok, JsonLoginResponse} = to_json(LoginResponse),
-  lager:info("Login json response: [~p]", [JsonLoginResponse]),
-  gen_tcp:send(Socket, JsonLoginResponse),
-  LoginState;
+
 handle_request(chat, Req, Socket, State) ->
   ChatState = case State#state.loggedin of
                  false -> ChatResponse = #response{success = "false", message = "User can only chat when logged in"},
@@ -134,4 +117,3 @@ terminate(Reason, _) ->
 
 refresh_socket(Socket) ->
   inet:setopts(Socket, [{active, once}]).
-

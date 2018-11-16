@@ -1,25 +1,29 @@
 package org.manhattan.tools.yaychat.utils;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import lombok.val;
-import org.apache.commons.lang3.StringUtils;
-import org.manhattan.tools.yaychat.dto.ChatDetail;
-import org.manhattan.tools.yaychat.dto.Request;
-import org.manhattan.tools.yaychat.dto.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.DataInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
+
+import org.apache.commons.lang3.StringUtils;
+import org.manhattan.tools.yaychat.dto.ChatDetail;
+import org.manhattan.tools.yaychat.dto.Record;
+import org.manhattan.tools.yaychat.dto.Registration;
+import org.manhattan.tools.yaychat.dto.Request;
+import org.manhattan.tools.yaychat.dto.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 
 
 public interface Utils {
@@ -80,8 +84,11 @@ public interface Utils {
     }
 
     static <T extends Record> boolean send(T data, OutputStream os){
-        Request jsonReq = Request.builder().type(data.getRecordType()).data(data).build();
-        val reqJson = toJson(jsonReq);
+        Request jsonReq = new Request();
+        jsonReq.setType(data.getRecordType());
+        jsonReq.setData(data);
+
+        String reqJson = toJson(jsonReq);
         log.debug("Json request {}", reqJson);
 
         DataOutputStream dout = new DataOutputStream(os);
@@ -95,12 +102,35 @@ public interface Utils {
         return false;
     }
 
+    static <T extends Record> Response sendRegistration(Registration data){
+        String reqJson = toJson(data);
+        log.debug("Json request: {}", reqJson);
+
+
+
+		try {
+			HttpResponse<com.mashape.unirest.http.JsonNode> jsonResponse = Unirest.post("http://localhost:8080/yaychat/user/register")
+			                                            .header("Content-Type", "application/json")
+			                                            .body(reqJson)
+			                                            .asJson();
+			String responseJSONString = jsonResponse.getBody().toString();
+			System.out.println("Response =>" + responseJSONString);
+			return fromJson(responseJSONString, Response.class);
+
+		} catch (UnirestException e) {
+		}
+
+        return null;
+
+
+    }
+
     static <T> T read(InputStream in, Class<T> clazz) throws IOException{
         DataInputStream dis = new DataInputStream(in);
         int packetLength = dis.readInt();
         byte[] buf = new byte[packetLength];
         dis.readFully(buf, 0, packetLength);
-        val jsonResponse = new String(buf, StandardCharsets.UTF_8);
+        String jsonResponse = new String(buf, StandardCharsets.UTF_8);
         log.debug("Json response received {}", jsonResponse);
         return fromJson(jsonResponse, clazz);
      }

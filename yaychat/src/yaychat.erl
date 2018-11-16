@@ -27,6 +27,11 @@ start(_StartType, _StartArgs) ->
 
     check_node_status(),
 
+    connect_nodes(),
+    register_node(),
+    %% init syn
+    syn:init(),
+
     %application:ensure_all_started(mysql_poolboy),
     %application:ensure_all_started(cowboy),
     Dispatch = cowboy_router:compile([
@@ -37,7 +42,7 @@ start(_StartType, _StartArgs) ->
             ]}
     ]),
     {ok, _} = cowboy:start_clear(yaychat_http_listener,
-        [{port, 8081}],
+        [{port, 8080}],
         #{env => #{dispatch => Dispatch},
         middlewares => [cowboy_router, session_cowboy_middleware, cowboy_handler]
     }),
@@ -45,10 +50,6 @@ start(_StartType, _StartArgs) ->
     case yaychat_sup:start_link(_StartArgs) of
       {ok, Pid} ->
         %% connect to nodes
-        connect_nodes(),
-        register_node(),
-        %% init syn
-        syn:init(),
         {ok, Pid};
       {error, Reason} ->
           {error, Reason}

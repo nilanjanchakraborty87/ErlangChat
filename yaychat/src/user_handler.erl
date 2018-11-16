@@ -11,10 +11,13 @@
 -export([allowed_methods/2]).
 -export([content_types_provided/2]).
 -export([content_types_accepted/2]).
+
+-json({login, {number, "mobile"}, {string, "password"}}).
+-json({request, {string, "type"}, {record, "data"}}).
 -json({response, {string, "isSuccess"}, {string, "type"}, {string, "message"}, {record, "data"}}).
 
 %% Callback Callbacks
--export([register/2]).
+-export([register/2, login/3]).
 
 -record(state, {op}).
 
@@ -44,7 +47,7 @@ register(Req, State) ->
   %extract body and validate
   case get_body(Body, Req1) of
         {ok, Input, _Req} ->
-          lager:info("Incoming registration request: [~p]", [Input]),
+          lager:info("Registration request: [~p]", [Input]),
             %% Validate body json and fields
             Model = [
                 {<<"email">>, required, string, #user.user_email, [non_empty,
@@ -105,17 +108,45 @@ register(Req, State) ->
 persist_user(Emodel, Req) ->
     %% Auth middleware
     {ok, Data} = Emodel,
-    lager:info("Register user details: [~p]", [Data]),
     case yaychat_db:check_user(Data#user.user_mobile) of
         false ->
-            %Pass = maps:get(pass, Data),
-            %Register_safe_pass = maps:update(pass, pwd2hash(Pass), Data),
-            %Register = maps:put(token, random(64), Register_safe_pass),
-            %{ok, Req2} = cowboy_session:set(<<"register">>, Register, Req1),
-            case yaychat_db:save_user(Data) of
+            %hash password
+            NewData = Data#user{password = pwd2hash(Data#user.password)},
+            lager:info("Encrypted password -> ~p", [NewData#user.password]),
+            case yaychat_db:save_user(NewData) of
               undefined -> {error, <<"Internal error">>, Req};
              UserId -> {ok, UserId, Req}
            end;
         _ ->
-            {error, "User already exists", Req}
+            {error, "The Username is taken. Try another", Req}
     end.
+
+login(Req, Socket, C2SPid) ->
+  LoginDetail = Req#request.data,
+  lager:info("Login request ~p", [LoginDetail]),
+  lager:info("C2SPID ~p", [C2SPid]),
+  case yaychat_db:find_user_by_username(LoginDetail#login.mobile) of
+    User when User /= undefined ->
+      %match password
+      HashPassword = pwd2hash(LoginDetail#login.password),
+      case string:equal(HashPassword, User#user.password) of
+        true ->
+                lager:info("login successful for Username: ~p", [User#user.username]),
+                Ret = syn:register(binary_to_list(User#user.username), C2SPid),
+                lager:info("Syn return: ~p", [Ret]),
+                %create the login response in correspondence to the legacy code
+                LoginTime = qdate:to_string("YmdHi", calendar:local_time()),
+                Client = #client{name = binary_to_list(User#user.user_fname) ++ " " ++ binary_to_list(User#user.user_lname),
+                                        email = binary_to_list(User#user.user_email), mobile = User#user.user_mobile,
+                                        lastLogin = LoginTime},
+
+                #response{success = "true", type = "login", message = "Login Successful", data = Client};
+        false ->
+                lager:info("Password don't match"),
+                #response{success = "false", type = "login", message = "Password don't match"}
+      end;
+    record_not_found ->
+      #response{success = "false",type = "login",  message = "User not found"};
+    error ->
+      #response{success = "false",type = "login",  message = "Sorry! something went wrong. Please retry"}
+   end.

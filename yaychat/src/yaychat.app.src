@@ -2,7 +2,7 @@
  [{description, "yayChat! Fastest, Simple & Reliable Chat"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, { yaychat, [{port,9756}]}},
+  {mod, { yaychat, [{port,9755}]}},
   {applications,
    [kernel,
    stdlib,

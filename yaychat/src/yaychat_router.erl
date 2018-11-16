@@ -26,7 +26,7 @@
 
 -include("yaychat.hrl").
 %-record(user, {mobile, password, name, email, loginStatus, pid, socket}).
--record(state, {users}).
+-record(state, {}).
 
 %%%===================================================================
 %%% API
@@ -63,9 +63,7 @@ start_link() ->
   {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
-  Users = ets:new(users, [set]),
-  lager:info("yaychat_router: Users database created successfully"),
-  {ok, #state{users = Users}}.
+  {ok, #state{}}.
 
 
 %%--------------------------------------------------------------------
@@ -84,36 +82,8 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({new_registration, RegDetail, Socket, PID}, _From, State) ->
-  Response = ets:insert_new(State#state.users, {RegDetail#registration.mobile,
-       RegDetail#registration.password,
-       RegDetail#registration.name,
-       RegDetail#registration.email,
-       false, PID, Socket}),
-  {reply, Response, State};
-handle_call({new_login, LoginDetail, Socket, PID}, _From, State) ->
-  FoundUsers = ets:lookup(State#state.users, LoginDetail#login.mobile),
-  Response = case length(FoundUsers) of
-    0 -> lager:info("No user found for mobile [~s]", [LoginDetail#login.mobile]),
-      user_not_found;
-    _ -> User = hd(FoundUsers),
-      lager:info("User[~p] found. Login successful", [User]),
-      {Mobile, Password, Name, Email, _, _, _} = User,
-      case string:equal(LoginDetail#login.password, Password) of
-          true ->
-            ets:insert(State#state.users, {Mobile,
-              Password,
-              Name,
-              Email,
-              true, PID, Socket}),
-            Now = calendar:local_time(),
-            LoginTime = qdate:to_string("YmdHi", Now),
-            #client{name = Name, email = Email, mobile = Mobile, lastLogin = LoginTime};
-          false -> lager:info("Password doesn't match"),
-            password_dont_match
-      end
-  end,
-  {reply, Response, State}.
+handle_call(_, _From, State) ->
+  {reply, undefined, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -129,25 +99,14 @@ handle_call({new_login, LoginDetail, Socket, PID}, _From, State) ->
 handle_cast({private_chat, ChatDetail, Socket}, State) ->
   From = ChatDetail#chat_detail.from,
   To = ChatDetail#chat_detail.to,
-  Recipients = ets:lookup(State#state.users, To),
-  case Recipients of
-    [] -> lager:info("[~p] is not registered in yaychat", [To]);
-    _ -> forward_message(Recipients, From, ChatDetail#chat_detail.message)
+  case syn:find_by_key(integer_to_list(To)) of
+    Pid ->
+      lager:info("Process id ~p", [Pid]),
+       Pid ! {private_message, From, ChatDetail#chat_detail.message};
+    undefined ->
+      lager:info("User is offline")
   end,
   {noreply, State}.
-
-
-forward_message([], _, _) -> void;
-forward_message([H|T], From, Message) ->
-  {Mobile, _, _, _, LoginStatus, Pid, _} = H,
-  case LoginStatus of
-    true ->
-      lager:info("Found recipient process pid [~p]", [Pid]),
-      gen_server:cast(Pid, {private_message, From, Message});
-    false ->
-      lager:info("User[:~p] is offline. So unable to deliver message", [Mobile])
-  end,
-  forward_message(T, From, Message).
 
 
 %%--------------------------------------------------------------------

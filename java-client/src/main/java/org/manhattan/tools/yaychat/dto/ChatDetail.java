@@ -8,10 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 
-@lombok.Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @JsonIgnoreProperties({"recordType"})
 public class ChatDetail extends Record{
@@ -20,8 +16,57 @@ public class ChatDetail extends Record{
     private long from;
     private long to;
     private String message;
+    
+    public ChatDetail() {
+    	
+    }
+    
+    public ChatDetail(long from, long to, String message) {
+		super();
+		this.from = from;
+		this.to = to;
+		this.message = message;
+	}
 
-    @Override
+
+
+	public long getFrom() {
+		return from;
+	}
+
+
+
+	public void setFrom(long from) {
+		this.from = from;
+	}
+
+
+
+	public long getTo() {
+		return to;
+	}
+
+
+
+	public void setTo(long to) {
+		this.to = to;
+	}
+
+
+
+	public String getMessage() {
+		return message;
+	}
+
+
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+
+
+	@Override
     public String getRecordType() {
         return "chat";
     }

@@ -59,8 +59,8 @@
         <appender-ref ref="FILE-LOGGER" />
     </logger>
 
-    <root level="debug">
-        <appender-ref ref="FILE-LOGGER" />
+    <root level="info">
+        <appender-ref ref="STDOUT" />
     </root>
 
 </configuration>
